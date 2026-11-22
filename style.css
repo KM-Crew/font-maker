@@ -14,3 +14,11 @@
 .sharecard { position: fixed; left: -9999px; top: 0; width: 560px; padding: 40px; background: #fffaf2; border-radius: 20px; text-align: center; }
 .sct { font-size: 72px; color: #1b1b22; }
 .scs { font-size: 16px; color: #8a7f70; margin-top: 10px; }
+
+/* ---------- PC 화면 ---------- */
+.pc .hero { text-align: left; }
+.pc .sample { font-size: 64px; transform-origin: left center; }
+.pc .steps { grid-template-columns: 1fr; margin: 0; }
+.pc .pad-wrap { max-width: 540px; }
+.pc .charmap { grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); }
+.pc body[data-page=preview] main, .pc body[data-page=export] main { max-width: 860px; }
