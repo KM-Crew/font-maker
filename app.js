@@ -81,7 +81,9 @@ async function loadPreviewFont() {
 
 /* ---------- 랜딩 ---------- */
 Router.on('/', root => {
-  root.append(h(`
+  const wrap = h('<div class="split center"></div>');
+  root.append(wrap);
+  wrap.append(h(`
     <section class="hero">
       <div class="sample">Hello, my font!</div>
       <h1>내 글씨가<br>진짜 폰트가 돼요</h1>
@@ -89,7 +91,7 @@ Router.on('/', root => {
       <a class="btn primary big block" href="#/draw">${doneCount() ? `이어서 그리기 (${doneCount()}/${CHARS.length})` : '글자 그리러 가기'}</a>
     </section>
     `));
-  root.append(h(`
+  wrap.append(h(`
     <section class="steps">
       <div class="card"><b>1. 그리기</b><p class="muted small">영문·숫자·기호 ${CHARS.length}자. 몇 글자만 그려도 미리보기가 돼요.</p></div>
       <div class="card"><b>2. 미리보기</b><p class="muted small">문장을 넣으면 내 글씨로 바로 보여요.</p></div>
@@ -104,14 +106,16 @@ Router.on('/draw', (root, params) => {
   root.append(h(`
     <section class="stack">
       <div class="row"><h2 style="margin:0">글자 그리기</h2><span class="grow"></span><span class="muted small" id="cnt"></span></div>
-      <div class="pad-wrap">
+      <div class="split s37"><div class="pad-wrap">
         <div class="target" id="target"></div>
         <canvas id="pad" width="${CANVAS}" height="${CANVAS}"></canvas>
       </div>
+      <div class="stack">
       <div class="row"><button class="btn" id="prev">←</button><button class="btn grow" id="undo">되돌리기</button><button class="btn grow" id="clear">지우기</button><button class="btn primary" id="next">다음 →</button></div>
       <div><label class="field">펜 굵기 <b id="pv">${pen}</b></label><input type="range" id="pen" min="6" max="40" value="${pen}"></div>
       <div class="charmap" id="map"></div>
       <a class="btn block" href="#/preview">미리보기로 →</a>
+      </div></div>
     </section>`));
   const pad = $('#pad'), c2 = pad.getContext('2d');
   let current = null;
