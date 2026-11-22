@@ -111,7 +111,8 @@ Router.on('/draw', (root, params) => {
         <canvas id="pad" width="${CANVAS}" height="${CANVAS}"></canvas>
       </div>
       <div class="stack">
-      <div class="row"><button class="btn" id="prev">←</button><button class="btn grow" id="undo">되돌리기</button><button class="btn grow" id="clear">지우기</button><button class="btn primary" id="next">다음 →</button></div>
+      <div class="row"><button class="btn" id="prev" title="이전 글자 (←)">←</button><button class="btn grow" id="undo" title="Ctrl+Z">되돌리기</button><button class="btn" id="redo" title="다시 실행 (Ctrl+Y)">↪</button><button class="btn grow" id="clear" title="Delete">지우기</button><button class="btn primary" id="next" title="다음 글자 (→)">다음 →</button></div>
+      <p class="muted small">단축키: Ctrl+Z 되돌리기 · Ctrl+Y 다시 실행 · Delete 이 글자 지우기 · ←/→ 글자 이동 · 글자 키를 누르면 그 글자로 이동</p>
       <div><label class="field">펜 굵기 <b id="pv">${pen}</b></label><input type="range" id="pen" min="6" max="40" value="${pen}"></div>
       <div class="charmap" id="map"></div>
       <a class="btn block" href="#/preview">미리보기로 →</a>
@@ -119,6 +120,7 @@ Router.on('/draw', (root, params) => {
     </section>`));
   const pad = $('#pad'), c2 = pad.getContext('2d');
   let current = null;
+  let redo = [];                                           // 다시 실행할 획(글자를 바꾸거나 새로 그리면 비움)
   const g = () => (glyphs[CHARS[idx]] = glyphs[CHARS[idx]] || { w: pen, strokes: [] });
 
   function draw() {
@@ -153,7 +155,7 @@ Router.on('/draw', (root, params) => {
     $('#target').textContent = CHARS[idx];
     $('#cnt').textContent = `${doneCount()} / ${CHARS.length} 완료`;
     $('#map').innerHTML = CHARS.map((c, k) => `<button class="cm ${glyphs[c]?.strokes.length ? 'done' : ''} ${k === idx ? 'cur' : ''}" data-k="${k}">${esc(c)}</button>`).join('');
-    $$('#map .cm').forEach(b => b.onclick = () => { idx = Number(b.dataset.k); renderMap(); draw(); });
+    $$('#map .cm').forEach(b => b.onclick = () => { idx = Number(b.dataset.k); redo = []; renderMap(); draw(); });
   }
   const pos = e => { const r = pad.getBoundingClientRect(); return [(e.clientX - r.left) * CANVAS / r.width, (e.clientY - r.top) * CANVAS / r.height]; };
   pad.addEventListener('pointerdown', e => {
@@ -169,19 +171,39 @@ Router.on('/draw', (root, params) => {
   });
   const finish = () => {
     if (!current) return;
-    g().strokes.push(current); current = null; saveGlyphs(); draw(); renderMap();
+    g().strokes.push(current); current = null; redo = []; saveGlyphs(); draw(); renderMap();
   };
   pad.addEventListener('pointerup', finish);
   pad.addEventListener('pointercancel', finish);
-  $('#undo').onclick = () => { const gl = glyphs[CHARS[idx]]; if (gl) { gl.strokes.pop(); saveGlyphs(); draw(); renderMap(); } };
-  $('#clear').onclick = () => { delete glyphs[CHARS[idx]]; saveGlyphs(); draw(); renderMap(); };
-  $('#prev').onclick = () => { idx = (idx - 1 + CHARS.length) % CHARS.length; renderMap(); draw(); };
-  $('#next').onclick = () => { idx = (idx + 1) % CHARS.length; renderMap(); draw(); };
+  const undo = () => { const gl = glyphs[CHARS[idx]]; if (gl && gl.strokes.length) { redo.push(gl.strokes.pop()); saveGlyphs(); draw(); renderMap(); } };
+  const redoFn = () => { if (redo.length) { g().strokes.push(redo.pop()); saveGlyphs(); draw(); renderMap(); } };
+  const clearGlyph = () => { const gl = glyphs[CHARS[idx]]; if (gl) { redo = gl.strokes.slice().reverse(); delete glyphs[CHARS[idx]]; saveGlyphs(); draw(); renderMap(); } };
+  const goto = k => { idx = (k + CHARS.length) % CHARS.length; redo = []; renderMap(); draw(); };
+  $('#undo').onclick = undo;
+  $('#redo').onclick = redoFn;
+  $('#clear').onclick = clearGlyph;
+  $('#prev').onclick = () => goto(idx - 1);
+  $('#next').onclick = () => goto(idx + 1);
+  const onKey = e => {
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+    const mod = e.ctrlKey || e.metaKey;
+    const k = e.key.toLowerCase();
+    if (mod && k === 'z' && !e.shiftKey) { e.preventDefault(); undo(); }
+    else if (mod && (k === 'y' || (k === 'z' && e.shiftKey))) { e.preventDefault(); redoFn(); }
+    else if (mod || e.altKey) return;
+    else if (e.key === 'Backspace') { e.preventDefault(); undo(); }
+    else if (e.key === 'Delete') { e.preventDefault(); clearGlyph(); }
+    else if (e.key === 'ArrowLeft') { e.preventDefault(); goto(idx - 1); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); goto(idx + 1); }
+    else if (e.key.length === 1 && CHARS.includes(e.key)) { e.preventDefault(); goto(CHARS.indexOf(e.key)); }
+  };
+  addEventListener('keydown', onKey);
   $('#pen').oninput = e => {
     pen = Number(e.target.value); $('#pv').textContent = pen; store.set('fm-pen', pen);
     const gl = glyphs[CHARS[idx]]; if (gl) { gl.w = pen; saveGlyphs(); } draw();
   };
   renderMap(); draw();
+  return () => removeEventListener('keydown', onKey);
 });
 
 /* ---------- 미리보기 ---------- */
